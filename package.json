@@ -1,0 +1,10 @@
+{
+  "name": "mcsm",
+  "version": "0.1.0",
+  "description": "Minecraft Server Manager",
+  "main": "index.js",
+  "repository": "https://github.com/ajzat34/mcsm.git",
+  "author": "ajzat34 <ajzat25@gmail.com>",
+  "license": "MIT",
+  "private": false
+}
