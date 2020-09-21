@@ -5,6 +5,8 @@ const box = require('./box.js');
 const inquirer = require('inquirer');
 
 /* exit codes:
+* 1x = generic
+* 11 = database locked
 * 1xx = create
 */
 

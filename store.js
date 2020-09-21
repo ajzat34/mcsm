@@ -121,6 +121,14 @@ async function getLocalStorage() {
     db.set('version', version).write();
     console.log(` == First Time Setup Complete == `);
   }
+  db.lock = function() {
+    if (db.get('lock').value()) return false;
+    db.set('lock', true).write();
+    return true;
+  };
+  db.unlock = function() {
+    db.set('lock', false).write();
+  };
   return db;
 };
 module.exports.getLocalStorage = getLocalStorage;

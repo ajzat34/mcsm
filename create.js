@@ -5,6 +5,7 @@ const uuid = require('uuid/v4');
 const path = require('path');
 const fs = require('fs');
 const properties = require('./properties.js');
+const update = require('./update.js');
 
 /**
 * @param {string} message
@@ -17,6 +18,17 @@ async function confirm(message) {
       message: message,
     },
   ])).confirm;
+}
+
+/**
+* foreach but async
+* @param {array} array
+* @param {function} callback
+*/
+async function asyncForEach(array, callback) {
+  for (let index = 0; index < array.length; index++) {
+    await callback(array[index], index, array);
+  }
 }
 
 exports.command = ['create'];
@@ -43,6 +55,19 @@ exports.handler = async function(argv) {
   const data = require('./store.js');
   const store = await data.getLocalStorage();
 
+  if (!(store.lock())) {
+    exit('Database is locked! Someone else must be using it right now.', 11);
+  }
+  /** cleanup */
+  function cleanup() {
+    console.log('\nCleaning Up...');
+    store.unlock();
+  }
+  process.on('exit', cleanup);
+  process.on('SIGINT', ()=>{
+    process.exit();
+  });
+
   if (!(await confirm('Do you accept the Minecraft Server EULA?'))) {
     exit('You did not agree to the EULA.', EXIT_EULA);
   }
@@ -54,11 +79,23 @@ exports.handler = async function(argv) {
     {
       type: 'input',
       name: 'name',
-      message: 'Server Name',
+      message: 'Name',
       default: 'Minecraft Server',
       validate(input) {
         return new Promise(function(resolve, reject) {
           if (input) resolve(true);
+          else resolve(false);
+        });
+      },
+    },
+    {
+      type: 'input',
+      name: 'alias',
+      message: 'Alias (no spaces, no caps)',
+      default: 'mcs',
+      validate(input) {
+        return new Promise(function(resolve, reject) {
+          if (input && !(input.includes(' '))) resolve(true);
           else resolve(false);
         });
       },
@@ -137,7 +174,8 @@ exports.handler = async function(argv) {
     id: id,
     path: path.resolve(store.get('server_path').value(), id),
     name: response.name,
-    version: response.version,
+    alias: response.alias.toLowerCase(),
+    version: 'none',
     dist: 'papermc',
     plugins: [],
     properties: {
@@ -151,9 +189,10 @@ exports.handler = async function(argv) {
       'pvp': response['pvp'].toLowerCase(),
       'enable-command-block': response['enable-command-block'].toLowerCase(),
     },
+    active: false,
   };
 
-  store.get('servers').set(server.id, server).write();
+  await store.get('servers').set(server.id, server).write();
 
   await fs.promises.mkdir(server.path);
   await fs.promises.writeFile(
@@ -164,5 +203,25 @@ exports.handler = async function(argv) {
       path.resolve(server.path, 'server.properties'),
       properties.serialize(server.properties),
   );
-  console.log(server);
+
+  await fs.promises.mkdir(path.resolve(server.path, 'plugins'));
+
+  // await update(server, response.version);
+  await store.get('servers').set(server.id, server).write();
+
+  await asyncForEach(response.plugins, async (pluginName) => {
+    const plugin = plugins.create(
+        pluginName,
+        `${pluginName.toLowerCase()}_bukkit.jar`,
+        null,
+        pluginName,
+        true,
+    );
+    server.plugins.push(plugin);
+    await plugins.update(server, plugin);
+  });
+
+  await store.get('servers').set(server.id, server).write();
+
+  // console.log(server);
 };
