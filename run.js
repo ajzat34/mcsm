@@ -68,10 +68,41 @@ class Process {
   }
 
   /**
+  * @return {subprocess}
+  */
+  createProcess() {
+    return spawn(
+        'java',
+        this.cmd(),
+        {
+          cwd: this.path,
+        });
+  }
+
+  /**
+  * run, then stop
+  * @return {subprocess}
+  */
+  cycle() {
+    const child = this.createProcess();
+    const interval = setInterval(()=>{
+      try {
+        child.stdin.write('stop\n');
+      } catch (err) {
+        console.error(`Error: ${err.message}`);
+      }
+    }, 2000);
+    child.stdin.on('close', ()=>{
+      clearInterval(interval);
+    });
+    return child;
+  }
+
+  /**
   * run it
   * @param {bool} interactive
   */
-  async run(interactive=true, fork=false) {
+  async run(interactive=true) {
     const server = this.server = store.get('servers').get(this.id).value();
     if (server.active) {
       if (server.pid && isRunning(server.pid)) {
@@ -156,6 +187,6 @@ exports.handler = async function(argv) {
   // console.log(argv);
   const target = argv.target;
   const proc = new Process(require('./find')(store, target));
-  await proc.run(!argv.fork);
+  await proc.cycle(!argv.fork);
   exit();
 };

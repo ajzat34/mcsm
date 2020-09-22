@@ -8,6 +8,7 @@ const inquirer = require('inquirer');
 * 1 = exit from SIGINT
 * 1x = generic
 * 11 = database locked
+* 12 = generic fail
 * 1xx = create
 * 4xx = run
 */
@@ -20,6 +21,7 @@ yargs
     .command(require('./locate.js'))
     .command(require('./stop.js'))
     .command(require('./start.js'))
+    .command(require('./remove.js'))
     .help()
     .wrap(Math.min(100, process.stdout.columns || 100))
     .argv;

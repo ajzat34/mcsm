@@ -7,6 +7,7 @@ const fs = require('fs');
 const properties = require('./properties.js');
 const update = require('./update.js');
 const find = require('./find.js');
+const ora = require('ora');
 
 /**
 * @param {string} message
@@ -70,24 +71,24 @@ exports.handler = async function(argv) {
   const response = await inquirer.prompt([
     {
       type: 'input',
-      name: 'name',
-      message: 'Name',
-      default: 'Minecraft Server',
+      name: 'alias',
+      message: 'Name (no spaces, no caps)',
+      default: 'mcs',
       validate(input) {
         return new Promise(function(resolve, reject) {
-          if (input) resolve(true);
+          if (input && !(input.includes(' '))) resolve(true);
           else resolve(false);
         });
       },
     },
     {
       type: 'input',
-      name: 'alias',
-      message: 'Alias (no spaces, no caps)',
-      default: 'mcs',
+      name: 'name',
+      message: 'Descriptive Name',
+      default: 'Minecraft Server',
       validate(input) {
         return new Promise(function(resolve, reject) {
-          if (input && !(input.includes(' '))) resolve(true);
+          if (input) resolve(true);
           else resolve(false);
         });
       },
@@ -209,7 +210,24 @@ exports.handler = async function(argv) {
   await update(server, response.version);
   await store.get('servers').set(server.id, server).write();
 
-  await fs.promises.mkdir(path.resolve(server.path, 'plugins'));
+  const {Process} = await require('./run.js').open(store);
+  await new Promise(function(resolve, reject) {
+    const proc = new Process(server.id);
+    const spinner = ora('Setting up server...').start();
+    const child = proc.cycle();
+    child.stdout.on('data', (data)=>{
+      spinner.text = `Setting up server: ${data.toString()}`;
+    });
+    child.stderr.on('data', (data)=>{
+      spinner.fail();
+      console.error(data.toString());
+    });
+    child.on('exit', ()=>{
+      spinner.text = 'Initial setup';
+      spinner.succeed();
+      resolve();
+    });
+  });
 
   // console.log(server);
 };

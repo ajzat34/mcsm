@@ -29,8 +29,8 @@ const shortEnglishHumanizer = humanizeDuration.humanizer({
   },
 });
 
-const RUNNING = chalk.green('Running');
-const STOPPED = chalk.red('Stopped');
+const RUNNING = chalk.bgGreen(' Running ');
+const STOPPED = chalk.bgRed(' Stopped ');
 
 const tableopt = {
   columns: {
@@ -63,6 +63,7 @@ const tableopt = {
 exports.handler = async function(argv) {
   const data = require('./store.js');
   const store = await data.getLocalStorage();
+
   const servers = store.get('servers').value();
 
   const td = [];
@@ -88,7 +89,7 @@ exports.handler = async function(argv) {
       server.alias,
       server.name,
       server.active? RUNNING:STOPPED,
-      server.motd,
+      server.properties.motd,
       stats? server.pid:'--',
       stats? `${stats.cpu/cpuCount}%`:'--',
       stats? prettyBytes(stats.memory): '--',
