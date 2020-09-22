@@ -43,6 +43,9 @@ class Process {
   */
   constructor(id) {
     this.id = id;
+    if (!(store.get('servers').has(id))) {
+      throw new Error(`Server id ${id} does not exist`);
+    }
     const server = this.server = store.get('servers').get(id).value();
     this.path = server.path;
   }
@@ -71,8 +74,12 @@ class Process {
   async run(interactive=true, fork=false) {
     const server = this.server = store.get('servers').get(this.id).value();
     if (server.active) {
-      if (isRunning(server.pid)) {
+      if (server.pid && isRunning(server.pid)) {
         exit('Server already active');
+      } else {
+        console.log(`WARN: ${server.id}@[${server.pid}] is inactive, updating database`);
+        await store.get('servers').get(this.id).set('pid', null).write();
+        await store.get('servers').get(this.id).set('active', false).write();
       }
     }
     await store.get('servers').get(this.id).set('active', true).write();
@@ -123,7 +130,6 @@ class Process {
             detached: true,
           },
       );
-      exit();
     }
   }
 };
@@ -149,6 +155,7 @@ exports.handler = async function(argv) {
   store = await data.getLocalStorage();
   // console.log(argv);
   const target = argv.target;
-  const process = new Process(require('./find')(store, target));
-  process.run(!argv.fork);
+  const proc = new Process(require('./find')(store, target));
+  await proc.run(!argv.fork);
+  exit();
 };

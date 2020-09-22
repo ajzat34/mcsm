@@ -1,4 +1,4 @@
-exports.command = ['list', 'ls', 'l'];
+exports.command = ['list', 'ls', 'l', '$0'];
 
 exports.describe = 'List Servers';
 
@@ -76,7 +76,7 @@ exports.handler = async function(argv) {
         stats = await pidusage(server.pid);
       } catch (err) {
         if (err.code = 'ENOENT') {
-          console.warn(`WARN: server[${id}]/pid[${server.pid}] is inactive, updating database`);
+          console.warn(`WARN: ${id}@[${server.pid}] is inactive, updating database`);
           await store.get('servers').get(id).set('active', false).write();
           await store.get('servers').get(id).set('pid', null).write();
         } else {
@@ -102,5 +102,5 @@ exports.handler = async function(argv) {
     ]);
   }
 
-  console.log(table(td, tableopt));
+  process.stdout.write(table(td, tableopt));
 };

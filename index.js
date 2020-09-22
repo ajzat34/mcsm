@@ -19,6 +19,7 @@ yargs
     .command(require('./run.js'))
     .command(require('./locate.js'))
     .command(require('./stop.js'))
-    .demandCommand()
+    .command(require('./start.js'))
+    .help()
     .wrap(Math.min(100, process.stdout.columns || 100))
     .argv;
