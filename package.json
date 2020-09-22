@@ -11,13 +11,16 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@octokit/rest": "^18.0.6",
     "axios": "^0.20.0",
+    "axios-cookiejar-support": "^1.0.0",
     "boxen": "^4.2.0",
     "chalk": "^4.1.0",
     "inquirer": "^7.3.3",
     "level": "^6.0.1",
     "lowdb": "^1.0.0",
     "progress": "^2.0.3",
+    "tough-cookie": "^4.0.0",
     "uuid": "^8.3.0",
     "yargs": "^16.0.3"
   },

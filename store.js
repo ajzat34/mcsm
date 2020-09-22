@@ -102,6 +102,7 @@ module.exports.setupServerPath = setupServerPath;
 * @param {lowdb} db
 */
 async function setup(db) {
+  if (!db.get('find').value()) await db.set('find', {}).write();
   if (!db.get('server_path').value()) await setupServerPath(db);
 }
 module.exports.setup = setup;
@@ -121,7 +122,19 @@ async function getLocalStorage() {
     db.set('version', version).write();
     console.log(` == First Time Setup Complete == `);
   }
+
   db.lock = function() {
+    /** cleanup */
+    function cleanup() {
+      if (db.get('lock').value()) {
+        db.unlock();
+      }
+    }
+    process.on('exit', cleanup);
+    process.on('SIGINT', ()=>{
+      process.exit();
+    });
+
     if (db.get('lock').value()) return false;
     db.set('lock', true).write();
     return true;

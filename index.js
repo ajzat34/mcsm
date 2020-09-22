@@ -14,6 +14,8 @@ const inquirer = require('inquirer');
 yargs
     .command(require('./list.js'))
     .command(require('./create.js'))
+    .command(require('./run.js'))
+    .command(require('./locate.js'))
     .demandCommand()
     .wrap(Math.min(100, process.stdout.columns || 100))
     .argv;

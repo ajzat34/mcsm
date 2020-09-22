@@ -4,14 +4,6 @@ const download = require('./download.js');
 // const inquirer = require('inquirer');
 
 const plugins = [
-  'EssentialsX',
-  'WorldEdit',
-  'WorldGuard',
-  'Multiverse-Core',
-  'Multiverse-Portals',
-  'Multiverse-NetherPortals',
-  'Multiverse-SignPortals',
-  'OpenInv',
 ];
 
 /**

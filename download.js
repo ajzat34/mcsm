@@ -16,14 +16,9 @@ function download(url, file, message='Downloading') {
     const writer = fs.createWriteStream(file);
 
     try {
-      const {data, headers} = await axios({
-        url,
-        method: 'GET',
+      const {data, headers} = await axios.get(url, {
         responseType: 'stream',
-        // headers: {'User-Agent': 'Mozilla'},
-        withCredentials: true,
       });
-      const totalLength = headers['content-length'];
 
       const progressBar = new ProgressBar(
           `${message} [:bar] :percent :etas`, {
@@ -31,7 +26,7 @@ function download(url, file, message='Downloading') {
             complete: '=',
             incomplete: ' ',
             renderThrottle: 1,
-            total: parseInt(totalLength),
+            total: parseInt(headers['content-length']),
           });
 
       data.on('data', (chunk) => progressBar.tick(chunk.length));

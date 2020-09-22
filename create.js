@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const properties = require('./properties.js');
 const update = require('./update.js');
+const find = require('./find.js');
 
 /**
 * @param {string} message
@@ -58,15 +59,6 @@ exports.handler = async function(argv) {
   if (!(store.lock())) {
     exit('Database is locked! Someone else must be using it right now.', 11);
   }
-  /** cleanup */
-  function cleanup() {
-    console.log('\nCleaning Up...');
-    store.unlock();
-  }
-  process.on('exit', cleanup);
-  process.on('SIGINT', ()=>{
-    process.exit();
-  });
 
   if (!(await confirm('Do you accept the Minecraft Server EULA?'))) {
     exit('You did not agree to the EULA.', EXIT_EULA);
@@ -114,14 +106,15 @@ exports.handler = async function(argv) {
     },
     {
       type: 'input',
-      name: 'level-seed',
-      message: 'Seed (leave blank for random)',
-    },
-    {
-      type: 'input',
       name: 'server-port',
       message: 'Server Port',
       default: '25565',
+    },
+    {
+      type: 'number',
+      name: 'maxMem',
+      message: 'Max amount of Memory (in Gigabytes)',
+      default: 4,
     },
     {
       type: 'number',
@@ -133,6 +126,11 @@ exports.handler = async function(argv) {
       type: 'input',
       name: 'motd',
       message: 'Message of the Day (MOTD)',
+    },
+    {
+      type: 'input',
+      name: 'level-seed',
+      message: 'Seed (leave blank for random)',
     },
     {
       type: 'input',
@@ -189,9 +187,12 @@ exports.handler = async function(argv) {
       'pvp': response['pvp'].toLowerCase(),
       'enable-command-block': response['enable-command-block'].toLowerCase(),
     },
+    minMem: 1,
+    maxMem: response.maxMem,
     active: false,
   };
 
+  await find.add(store, server.alias, server.id);
   await store.get('servers').set(server.id, server).write();
 
   await fs.promises.mkdir(server.path);
@@ -204,24 +205,10 @@ exports.handler = async function(argv) {
       properties.serialize(server.properties),
   );
 
+  await update(server, response.version);
+  await store.get('servers').set(server.id, server).write();
+
   await fs.promises.mkdir(path.resolve(server.path, 'plugins'));
-
-  // await update(server, response.version);
-  await store.get('servers').set(server.id, server).write();
-
-  await asyncForEach(response.plugins, async (pluginName) => {
-    const plugin = plugins.create(
-        pluginName,
-        `${pluginName.toLowerCase()}_bukkit.jar`,
-        null,
-        pluginName,
-        true,
-    );
-    server.plugins.push(plugin);
-    await plugins.update(server, plugin);
-  });
-
-  await store.get('servers').set(server.id, server).write();
 
   // console.log(server);
 };
