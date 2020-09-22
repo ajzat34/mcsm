@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const defaults = {servers: {}};
 const inquirer = require('inquirer');
+const exitHook = require('async-exit-hook');
 
 const version = 1;
 
@@ -124,15 +125,10 @@ async function getLocalStorage() {
   }
 
   db.lock = function() {
-    /** cleanup */
-    function cleanup() {
+    exitHook(()=>{
       if (db.get('lock').value()) {
         db.unlock();
       }
-    }
-    process.on('exit', cleanup);
-    process.on('SIGINT', ()=>{
-      process.exit();
     });
 
     if (db.get('lock').value()) return false;

@@ -190,6 +190,7 @@ exports.handler = async function(argv) {
     minMem: 1,
     maxMem: response.maxMem,
     active: false,
+    pid: null,
   };
 
   await find.add(store, server.alias, server.id);
