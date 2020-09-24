@@ -4,6 +4,23 @@ const paper = require('./papermc');
 const download = require('./download.js');
 
 /**
+* move a file
+* @param {string} src
+* @param {string} dst
+* @return {false|Error}
+*/
+async function move(src, dst) {
+  try {
+    await fs.promises.rename(
+        src, dst,
+    );
+  } catch (err) {
+    return err;
+  }
+  return false;
+}
+
+/**
 * Update a server
 * @param {object} server
 * @param {string} version the target version
@@ -13,33 +30,20 @@ async function update(server, version) {
   if (server.active == true) {
     throw new Error(`Server must not be active during update.`);
   }
-  try {
-    await fs.promises.rename(
-        path.resolve(server.path, 'server.jar'),
-        path.resolve(server.path, 'server.jar.old'),
-    );
-  } catch (err) {
-    if (err.code = 'ENOENT') {
-      console.warn(`Backup Failed: server.jar not found`);
-    } else {
-      throw err;
-    }
-  }
-
-  try {
-    console.log(`${paper.download(version)}`);
-    await download(
-        paper.download(version),
-        path.resolve(server.path, 'server.jar'),
-        `Fetching  PaperMC@${version}`,
-    );
-  } catch (err) {
-    console.error(err);
-    console.error(`Failed to fetch server version ${version}, cleaning up`);
-    await fs.promises.rename(
-        path.resolve(server.path, 'server.jar.old'),
-        path.resolve(server.path, 'server.jar'),
-    );
+  console.log(`${paper.download(version)}`);
+  await download(
+      paper.download(version),
+      path.resolve(server.path, 'server.new.jar'),
+      `Fetching  PaperMC@${version}`,
+  );
+  let err;
+  if (
+    err = await move(
+        path.resolve(server.path, 'server.new.jar'),
+        path.resolve(server.path, 'server.jar'))
+  ) {
+    console.error('Failed to install new server jar');
+    throw err;
   }
   server.version = version;
 }

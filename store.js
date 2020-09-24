@@ -104,6 +104,7 @@ module.exports.setupServerPath = setupServerPath;
 */
 async function setup(db) {
   if (!db.get('find').value()) await db.set('find', {}).write();
+  if (!db.get('backup_find').value()) await db.set('backup', {}).write();
   if (!db.get('server_path').value()) await setupServerPath(db);
 }
 module.exports.setup = setup;

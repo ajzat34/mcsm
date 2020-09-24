@@ -43,10 +43,12 @@ class Process {
   */
   constructor(id) {
     this.id = id;
-    if (!(store.get('servers').has(id))) {
+    if (!(store.get('servers').has(id).value())) {
       throw new Error(`Server id ${id} does not exist`);
     }
     const server = this.server = store.get('servers').get(id).value();
+    if (server.backup) throw new Error(`Cannot load backup of server`);
+    if (!server.safe) throw new Error(`Server is not safe for usage, the install process may have been interupted.`);
     this.path = server.path;
   }
 
@@ -56,6 +58,14 @@ class Process {
   update() {
     this.server = store.get('servers').get(this.id).value();
   }
+
+  /**
+  * write local copy to the store
+  */
+  write() {
+    store.get('servers').set(this.id, this.server).write();
+  }
+
 
   /** @return {string} the path to the jar */
   jar() {
@@ -88,9 +98,7 @@ class Process {
     const interval = setInterval(()=>{
       try {
         child.stdin.write('stop\n');
-      } catch (err) {
-        console.error(`Error: ${err.message}`);
-      }
+      } catch (err) {}
     }, 2000);
     child.stdin.on('close', ()=>{
       clearInterval(interval);
@@ -102,7 +110,7 @@ class Process {
   * run it
   * @param {bool} interactive
   */
-  async run(interactive=true) {
+  async run(interactive) {
     const server = this.server = store.get('servers').get(this.id).value();
     if (server.active) {
       if (server.pid && isRunning(server.pid)) {
@@ -145,7 +153,7 @@ class Process {
         this.cmd(),
         {
           cwd: this.path,
-          stdio: interactive? 'inherit':null,
+          stdio: interactive? 'inherit':undefined,
           detached: !interactive,
         },
     );
@@ -184,9 +192,8 @@ exports.builder = {
 exports.handler = async function(argv) {
   const data = require('./store.js');
   store = await data.getLocalStorage();
-  // console.log(argv);
   const target = argv.target;
   const proc = new Process(require('./find')(store, target));
-  await proc.cycle(!argv.fork);
+  await proc.run(!argv.fork);
   exit();
 };

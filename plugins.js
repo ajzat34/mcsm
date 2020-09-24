@@ -1,103 +1,154 @@
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 const download = require('./download.js');
-// const inquirer = require('inquirer');
+const curseforge = require('mc-curseforge-api');
+const inquirer = require('inquirer');
+const bukkit = require('./bukkit.js');
+const ora = require('ora');
 
-const plugins = [
-];
+const plugins = {
+  'EssentialsX': {
+    curseforge: 93271,
+  },
+  'WorldEdit': {
+    curseforge: 31043,
+  },
+  'WorldGuard': {
+    curseforge: 31054,
+  },
+  'Multiverse-Core': {
+    curseforge: 30765,
+  },
+  'Multiverse-Portals': {
+    curseforge: 30781,
+  },
+  'OpenInv': {
+    curseforge: 31432,
+  },
+};
 
 /**
-* turn a name into a downloadable url
-* @param {string} name
-* @return {string}
+* @param {string} pluginname
+* @return {array}
 */
-function url(name) {
-  return `https://dev.bukkit.org/projects/${name.toLowerCase()}/files/latest`;
+async function bukkitManifest(pluginname) {
+  if (!pluginname in plugins) throw new Error(`plugin ${pluginname} does not exist`);
+  const plugin = plugins[pluginname];
+  const res = await axios.get(bukkit(plugin.curseforge));
+  const data = res.data;
+  return data.reverse();
 }
 
-plugins.url = url;
-
 /**
-* Create a plugin
-* @param {string} name
-* @param {string} url
-* @param {string} bukkit bukkit string to update from
-* @param {bool} linklatest does the download link point to a specific version of
-  the plugin, or the latest version (only if bukkit=false)
-* @return {object}
+* @param {string} pluginname
+* @return {array}
 */
-function create(display, name, url, bukkit=false, linklatest=false) {
-  return {
-    url,
-    bukkit,
-    linklatest,
-    display,
-    name,
-    backup: `${name}.backup`,
-  };
+async function selectVersion(pluginname) {
+  const manifest = await bukkitManifest(pluginname);
+  manifest.forEach((plugin, i) => {
+    plugin.name = `${plugin.name || 'Unnamed File'} @${plugin.gameVersion}`;
+    plugin.value = plugin;
+  });
+  const response = (await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'plugins',
+      message: 'Which Files should be installed',
+      choices: manifest,
+    },
+  ])).plugins;
+  const result = [];
+  response.forEach((item, i) => {
+    result.push({
+      name: item.name,
+      url: item.downloadUrl,
+      filename: item.fileName,
+      version: item.gameVersion,
+    });
+  });
+  return result;
 }
 
-plugins.create = create;
-
 /**
-* install a new version of the plugin
-* @param {string} dir the path to the plugins folder
-* @param {object} plugin result of plugins.create
+* install (server must be written back to the store after)
+* @param {object} server
+* @param {string} pluginname
 */
-async function update(server, plugin) {
-  console.log(`Updating ${plugin.display} (${plugin.name})`);
-  if (server.active == true) {
-    throw new Error(`Server must not be active during update.`);
-  }
-  const dir = path.resolve(server.path, 'plugins');
-  let link;
-  if (plugin.bukkit) {
-    link = url(plugin.bukkit);
-  } else {
-    if (plugin.linklatest===false) {
-    }
-    link = plugin.url;
+async function install(server, pluginname) {
+  const spinnerbase = `Installing ${pluginname}`;
+  if (server.backup) {
+    ora(spinnerbase).fail();
+    throw new Error(`Cannot update a backup`);
   }
 
-  try {
-    await fs.promises.rename(
-        path.resolve(dir, plugin.name),
-        path.resolve(dir, plugin.backup),
-    );
-  } catch (err) {
-    if (err.code = 'ENOENT') {
-      console.warn(`Backup Failed: ${plugin.name} not found`);
-    } else {
-      throw err;
-    }
+  // ask for what files to install
+  const files = await selectVersion(pluginname);
+
+  // setup
+  const spinner = ora(spinnerbase).start();
+  const pluginspath = path.resolve(server.path, 'plugins');
+
+  // get the old plugin
+  let oldPlugin = false;
+  if (pluginname in server.plugins) {
+    oldPlugin = server.plugins[pluginname];
   }
 
-  try {
-    console.log(link);
+  const newFiles = [];
+
+  // download new files
+  for (file of files) {
+    spinner.text = `${spinnerbase} - File: ${file.filename}`;
+    spinner.stop();
     await download(
-        link,
-        path.resolve(dir, plugin.name),
-        `Fetching ${plugin.display}`,
+        file.url,
+        path.resolve(pluginspath, `${file.filename}.new`),
+        `Fetching: ${file.filename}`,
     );
-  } catch (err) {
-    console.error(err);
-    console.error(`Failed to fetch plugin`);
-    try {
-      await fs.promises.rename(
-          path.resolve(dir, plugin.backup),
-          path.resolve(dir, plugin.name),
-      );
-    } catch (err) {
-      if (err.code = 'ENOENT') {
-        console.warn(`Resotre Failed: ${plugin.backup} not found`);
-      } else {
-        throw err;
+    spinner.start();
+    newFiles.push(file.filename);
+  }
+
+  // remove old files
+  spinner.text = `${spinnerbase} - Removing old files`;
+  if (oldPlugin) {
+    for (file of oldPlugin.manifest) {
+      spinner.text = `${spinnerbase} - Removing old files - ${file}`;
+      try {
+        await fs.promises.unlink(path.resolve(pluginspath, file));
+      } catch (err) {
+        spinner.fail();
+        console.error(err);
+        spinner.start();
       }
     }
   }
+
+  // install new files
+  for (file of files) {
+    spinner.text = `${spinnerbase} - Installing File: ${file.filename}`;
+    try {
+      await fs.promises.rename(
+          path.resolve(pluginspath, `${file.filename}.new`),
+          path.resolve(pluginspath, file.filename),
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  spinner.text = `${spinnerbase} - Updating database`;
+  server.plugins[pluginname] = {
+    manifest: newFiles,
+    version: files[0].version,
+  };
+
+  spinner.text = spinnerbase;
+  spinner.succeed();
 }
 
-plugins.update = update;
+module.exports = Object.keys(plugins);
+module.exports.install = install;
 
-
-module.exports = plugins;
+module.exports.selectVersion = selectVersion;

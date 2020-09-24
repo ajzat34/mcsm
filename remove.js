@@ -1,4 +1,6 @@
 const inquirer = require('inquirer');
+const rimraf = require('rimraf');
+const path = require('path');
 
 exports.command = ['remove <target>', 'rm <target>'];
 
@@ -42,16 +44,29 @@ exports.handler = async function(argv) {
     exit('Database is locked! Someone else must be using it right now.', 11);
   }
 
+  const server = store.get('servers').get(proc.server.id).value();
+
+  const dir = path.resolve(server.path);
+  console.log(`Files to remove: ${dir}`);
+
   if (!(await confirm(
       `Are you sure you want to delete "${proc.server.name}" (${proc.server.alias})?`))) {
     exit(null, 0);
   }
 
-  console.log(`Removing database entry for: ${proc.server.id} (${proc.server.name})`);
-  // console.log(store.get('servers').get(proc.server.id).value());
-  await store.get('servers').get(proc.server.id).remove().write();
-  console.log(`Removing seach entry for: ${proc.server.alias} -> (${proc.server.id})`);
-  await store.get('find').remove(proc.server.alias).write();
+  await new Promise(function(resolve, reject) {
+    rimraf(dir, (err)=>{
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+
+  console.log(
+      `Removing database entry for: ${proc.server.id} (${proc.server.name})`);
+  await store.get('servers').unset(proc.server.id).write();
+  console.log(
+      `Removing seach entry for: ${proc.server.alias} -> (${proc.server.id})`);
+  await store.get('find').unset(proc.server.alias).write();
 
   store.unlock();
 };

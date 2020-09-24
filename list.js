@@ -65,14 +65,18 @@ exports.handler = async function(argv) {
   const store = await data.getLocalStorage();
 
   const servers = store.get('servers').value();
+  const find = store.get('find').value();
+  const backup = store.get('backup_find').value();
 
-  const td = [];
-  td.push(['Alias', 'Name', 'Status', 'MOTD', 'pid', 'CPU', 'MEM', 'Uptime']);
-
-  for (id of Object.keys(servers)) {
-    const server = servers[id];
+  td = [];
+  /**
+  * add a entry to the table
+  * @param {object} server
+  * @param {bool} less
+  */
+  async function tableAdd(server, less=false) {
     let stats;
-    if (server.pid) {
+    if (server.pid && less===false) {
       try {
         stats = await pidusage(server.pid);
       } catch (err) {
@@ -85,9 +89,17 @@ exports.handler = async function(argv) {
         }
       }
     }
-    td.push([
-      server.alias,
-      server.name,
+    if (less) {
+      td.push([
+        server.alias,
+        server.name,
+        server.version,
+      ]);
+    } else {
+      td.push([
+        server.alias,
+        server.name,
+        server.version,
       server.active? RUNNING:STOPPED,
       server.properties.motd,
       stats? server.pid:'--',
@@ -100,8 +112,40 @@ exports.handler = async function(argv) {
         spacer: '',
         delimiter: ' ',
       }): '--',
-    ]);
+      ]);
+    }
   }
 
+  td=[];
+  td.push([
+    'Alias',
+    'Name',
+    'Version',
+    'Status',
+    'MOTD',
+    'pid',
+    'CPU',
+    'MEM',
+    'Uptime',
+  ]);
+  for (alias of Object.keys(find)) {
+    const server = servers[find[alias]];
+    await tableAdd(server);
+  }
   process.stdout.write(table(td, tableopt));
+
+  if (backup) {
+    td=[];
+    td.push([
+      'Alias',
+      'Name',
+      'Version',
+    ]);
+    for (alias of Object.keys(backup)) {
+      const server = servers[backup[alias]];
+      await tableAdd(server, true);
+    }
+    console.log('Backups:');
+    process.stdout.write(table(td, tableopt));
+  }
 };

@@ -10,6 +10,14 @@ const find = require('./find.js');
 const ora = require('ora');
 
 /**
+* @return {string}
+*/
+function genuuid() {
+  return uuid().replace(/-/g, '_');
+}
+module.exports.uuid = genuuid;
+
+/**
 * @param {string} message
 * @return {bool}
 */
@@ -168,7 +176,7 @@ exports.handler = async function(argv) {
   ]);
   if (!(await confirm('Correct'))) exit();
 
-  const id = uuid().replace(/-/g, '_');
+  const id = genuuid();
   const server = {
     id: id,
     path: path.resolve(store.get('server_path').value(), id),
@@ -176,7 +184,7 @@ exports.handler = async function(argv) {
     alias: response.alias.toLowerCase(),
     version: 'none',
     dist: 'papermc',
-    plugins: [],
+    plugins: {},
     properties: {
       'motd': response.motd,
       'server-port': response['server-port'],
@@ -192,6 +200,7 @@ exports.handler = async function(argv) {
     maxMem: response.maxMem,
     active: false,
     pid: null,
+    safe: false,
   };
 
   await find.add(store, server.alias, server.id);
@@ -216,7 +225,8 @@ exports.handler = async function(argv) {
     const spinner = ora('Setting up server...').start();
     const child = proc.cycle();
     child.stdout.on('data', (data)=>{
-      spinner.text = `Setting up server: ${data.toString()}`;
+      const lines = data.toString().trim().split('\n');
+      spinner.text = `Setting up server: ${lines[lines.length-1]}`;
     });
     child.stderr.on('data', (data)=>{
       spinner.fail();
@@ -228,6 +238,10 @@ exports.handler = async function(argv) {
       resolve();
     });
   });
+
+  // install plugins
+
+  await store.get('servers').get(server.id).set('safe', true).write();
 
   // console.log(server);
 };

@@ -22,6 +22,9 @@ yargs
     .command(require('./stop.js'))
     .command(require('./start.js'))
     .command(require('./remove.js'))
+    .command(require('./backup.js'))
+    .command(require('./manage.js'))
+    .strict()
     .help()
     .wrap(Math.min(100, process.stdout.columns || 100))
     .argv;
