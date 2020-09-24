@@ -11,6 +11,9 @@ const plugins = {
   'EssentialsX': {
     curseforge: 93271,
   },
+  'Vault': {
+    curseforge: 33184,
+  },
   'WorldEdit': {
     curseforge: 31043,
   },
@@ -23,8 +26,29 @@ const plugins = {
   'Multiverse-Portals': {
     curseforge: 30781,
   },
+  'Multiverse-SignPortals': {
+    curseforge: 31376,
+  },
+  'Multiverse-NetherPortals': {
+    curseforge: 30783,
+  },
   'OpenInv': {
     curseforge: 31432,
+  },
+  'Shopkeepers': {
+    curseforge: 42795,
+  },
+  'FarmProtect': {
+    curseforge: 44691,
+  },
+  'ServerSigns': {
+    curseforge: 33254,
+  },
+  'Holographic Displays': {
+    curseforge: 75097,
+  },
+  'PlugMan': {
+    curseforge: 36006,
   },
 };
 

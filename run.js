@@ -46,7 +46,7 @@ class Process {
   constructor(id) {
     this.id = id;
     if (!(store.get('servers').has(id).value())) {
-      throw new Error(`Server id ${id} does not exist`);
+      exit(`Server id ${id} does not exist`, 13);
     }
     const server = this.server = store.get('servers').get(id).value();
     if (server.backup) throw new Error(`Cannot load backup of server`);
@@ -65,7 +65,7 @@ class Process {
   * write local copy to the store
   */
   write() {
-    store.get('servers').set(this.id, this.server).write();
+    return store.get('servers').set(this.id, this.server).write();
   }
 
 
@@ -80,12 +80,13 @@ class Process {
   }
 
   /**
+  * @param {array} args
   * @return {subprocess}
   */
-  createProcess() {
+  createProcess(args) {
     return spawn(
         'java',
-        this.cmd(),
+        this.cmd().concat(args),
         {
           cwd: this.path,
         });
@@ -96,7 +97,7 @@ class Process {
   * @return {subprocess}
   */
   cycle() {
-    const child = this.createProcess();
+    const child = this.createProcess(['nogui']);
     const interval = setInterval(()=>{
       try {
         child.stdin.write('stop\n');
@@ -228,7 +229,7 @@ module.exports.open = async function(loadstore) {
 
 exports.command = ['run <target> [--fork]'];
 
-exports.describe = 'Run a Server';
+exports.describe = 'Run a Server (process will not be watched)';
 
 exports.builder = {
 };

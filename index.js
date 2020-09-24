@@ -9,6 +9,7 @@ const inquirer = require('inquirer');
 * 1x = generic
 * 11 = database locked
 * 12 = generic fail
+* 13 = server does not exist
 * 1xx = create
 * 4xx = run
 */

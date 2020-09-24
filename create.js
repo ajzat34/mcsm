@@ -218,42 +218,9 @@ exports.handler = async function(argv) {
 
   await update(server, response.version);
   await store.get('servers').set(server.id, server).write();
+  await store.get('servers').get(server.id).set('safe', true).write();
 
   const {Process} = await require('./run.js').open(store);
-
-  /**
-  * @param {string} Message
-  * @return {promise}
-  */
-  function cycle(message) {
-    return new Promise(function(resolve, reject) {
-      const spinner = ora(`${message}...`).start();
-      const child = proc.cycle();
-      child.stdout.on('data', (data)=>{
-        const lines = data.toString().trim().split('\n');
-        lines.forEach((line, i) => {
-          if (line.includes('ERROR') || line.includes('WARN') || line.includes('warn') || line.includes('error')) {
-            spinner.stop();
-            console.log(line.trim());
-            spinner.start();
-          }
-        });
-
-        spinner.text = `${message}: ${lines[lines.length-1]}`;
-      });
-      child.stderr.on('data', (data)=>{
-        spinner.text = data.toString();
-        spinner.fail();
-        spinner = ora(`${data.toString()}`).start();
-        console.error(data.toString());
-      });
-      child.on('exit', ()=>{
-        spinner.text = message;
-        spinner.succeed();
-        resolve();
-      });
-    });
-  }
 
   const proc = new Process(server.id);
 
@@ -261,19 +228,16 @@ exports.handler = async function(argv) {
 
   // install plugins
   for (plugin of response.plugins) {
-    plugins.install(server, plugin);
+    await plugins.install(proc.server, plugin);
+    // write the changes
     await store.get('servers').set(server.id, server).write();
-    proc.update();
+    // read them back into the process
+    await proc.update();
   }
 
   if (response.plugins.length) {
     await proc.cycleFancy('Setting up plugins');
-    console.log(
-        `IMPORTANT: You may want to launch this server interactively with
-"run ${server.alias}" to make sure all of your plugins are compatable`);
   }
-
-  await store.get('servers').get(server.id).set('safe', true).write();
 
   // console.log(server);
 };
