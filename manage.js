@@ -34,4 +34,5 @@ exports.handler = async function(argv) {
     await plugins.install(proc.server, plugin);
     proc.write();
   }
+  await proc.cycleFancy('Setting up plugins');
 };

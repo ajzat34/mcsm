@@ -1,6 +1,8 @@
 const path = require('path');
 const {spawn, spawnSync} = require('child_process');
 const exitHook = require('async-exit-hook');
+const ora = require('ora');
+const chalk = require('chalk');
 
 let store;
 
@@ -104,6 +106,48 @@ class Process {
       clearInterval(interval);
     });
     return child;
+  }
+
+  /**
+  * @param {string} message
+  * @return {promise}
+  */
+  cycleFancy(message) {
+    const self = this;
+    return new Promise(function(resolve, reject) {
+      const spinner = ora(`${message}...`).start();
+      const child = self.cycle();
+      child.stdout.on('data', (data)=>{
+        const lines = data.toString().trim().split('\n');
+        lines.forEach((line, i) => {
+          if (line.includes('ERROR')) {
+            spinner.stop();
+            ora(chalk.red(line.trim())).fail();
+            spinner.start();
+          } else if (
+            line.includes('WARN') &&
+            !line.includes('Advanced terminal features')
+          ) {
+            spinner.stop();
+            ora(chalk.yellow(line.trim())).warn();
+            spinner.start();
+          }
+        });
+
+        spinner.text = `${message}: ${lines[lines.length-1]}`;
+      });
+      child.stderr.on('data', (data)=>{
+        spinner.text = data.toString();
+        spinner.fail();
+        spinner = ora(`${data.toString()}`).start();
+        console.error(data.toString());
+      });
+      child.on('exit', ()=>{
+        spinner.text = message;
+        spinner.succeed();
+        resolve();
+      });
+    });
   }
 
   /**
