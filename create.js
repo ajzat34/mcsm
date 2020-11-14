@@ -1,7 +1,7 @@
 const inquirer = require('inquirer');
 const papermc = require('./papermc.js');
 const plugins = require('./plugins.js');
-const uuid = require('uuid/v4');
+const { v4: uuid } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const properties = require('./properties.js');
