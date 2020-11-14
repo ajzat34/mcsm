@@ -10,6 +10,9 @@
   "scripts": {
     "start": "node index.js"
   },
+  "bin": {
+    "mc": "./index.js"
+  },
   "dependencies": {
     "@octokit/rest": "^18.0.6",
     "archiver": "^5.0.2",
